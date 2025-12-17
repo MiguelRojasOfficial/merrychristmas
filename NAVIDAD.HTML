@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Navidad</title>
+<style>
+  body{
+    margin:0;
+    min-height:100vh;
+    background:#4992bd;
+    font-family:Inter,system-ui;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .wrap{
+    width:1100px;
+    max-width:98vw;
+    
+    background:#072035;
+    border-radius:14px;
+    padding:14px;
+    box-shadow:0 16px 60px rgba(0,0,0,0.6);
+  }
+  h1{margin:0 0 10px;color:#fff;font-size:16px;text-align:center;}
+  canvas{display:block;border-radius:10px;width:100%;height:auto;}
+</style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>Merry Christmas</h1>
+    <canvas id="scene" width="1400" height="800"></canvas>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById('scene');
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+
+      // --- Luces navideñas ---
+      let bulbs = [];
+
+      function createBulbs(){
+        bulbs = [];
+        const cols = ['#ff6b6b','#ffd24a','#8fe3ff','#b7ffb7'];
+
+        for(let i=0;i<30;i++){
+          const x = 80 + i*(W-160)/29 + (Math.random()-0.5)*14;
+          const y = 168 + Math.sin(i*0.4)*34 + (Math.random()-0.5)*16;
+
+          bulbs.push({
+            x,
+            y,
+            color: cols[i % cols.length],
+            phase: Math.random()*1600
+          });
+        }
+      }
+
+      createBulbs();
+
+      class Snow{
+          constructor(){ this.reset(true); }
+          reset(init){
+            this.x = Math.random()*W;
+            this.y = init ? Math.random()*H : -20;
+            this.r = 1 + Math.random()*3;
+            this.v = 0.8 + Math.random()*1.4;
+            this.o = 0.3 + Math.random()*0.6;
+          }
+          update(){
+            this.x += Math.sin(this.y/40)*0.3;
+            this.y += this.v;
+            if(this.y > H+20) this.reset(false);
+          }
+          draw(){
+            ctx.beginPath();
+            ctx.fillStyle = `rgba(255,255,255,${this.o})`;
+            ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+            ctx.fill();
+          }
+      }
+
+      let snows = [];
+      for(let i=0;i<280;i++) snows.push(new Snow());
+
+      // =========================
+      // ASTAS REALISTAS CORRECTAS
+      // =========================
+      function drawAntler(ctx, x, y, scale = 1, dir = 1) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(dir * scale, scale);
+
+        const baseColor = "#6b4020";
+
+        function taperedCurve(p) {
+          const steps = 32;
+          for (let i = 0; i < steps; i++) {
+            const t0 = i / steps;
+            const t1 = (i + 1) / steps;
+            const w = p.w0 * (1 - t0) + p.w1 * t0;
+
+            function bez(t) {
+              const mt = 1 - t;
+              return {
+                x: mt**3*p.x0 + 8*mt**2*t*p.cx1 + 5*mt*t**2*p.cx2 + t**3*p.x1,
+                y: mt**3*p.y0 + 3*mt**2*t*p.cy1 + 3*mt*t**2*p.cy2 + t**3*p.y1
+              };
+            }
+
+            const a = bez(t0);
+            const b = bez(t1);
+
+            ctx.beginPath();
+            ctx.lineWidth = w;
+            ctx.lineCap = "round";
+
+            ctx.strokeStyle = p.color;
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+
+        // Tronco principal
+        taperedCurve({
+          x0:0, y0:0,
+          cx1:24, cy1:-36,
+          cx2:64, cy2:-78,
+          x1:110, y1:-158,
+          w0:20, w1:2,
+          color: baseColor
+        });
+
+        // Rama alta
+        taperedCurve({
+          x0: 68, y0: -54,
+          cx1: 62, cy1: -92,
+          cx2:100, cy2:-116,
+          x1: 140, y1: -168,
+          w0:10, w1:1,
+          color: baseColor
+        });
+
+        // Rama media
+        taperedCurve({
+          x0: 58, y0: -42,
+          cx1: 52, cy1: -78,
+          cx2: 78, cy2: -98,
+          x1:116, y1:-146,
+          w0:11, w1:1.2,
+          color: baseColor
+        });
+
+        // Rama baja
+        taperedCurve({
+          x0: 42, y0: -28,
+          cx1: 34, cy1: -56,
+          cx2: 52, cy2: -76,
+          x1:90, y1:-116,
+          w0:12, w1:1.4,
+          color: baseColor
+        });
+
+        ctx.restore();
+      }
+
+      // ======================
+      // RENO COMPLETO
+      // ======================
+      function drawReindeer(x,y,scale,flip=false){
+        ctx.save(); ctx.translate(x,y); ctx.scale(scale*(flip?-1:1),scale);
+
+        // patas
+        function leg(px, py, r){
+          ctx.save();
+          ctx.translate(px, py);
+          ctx.rotate(r);
+
+          // parte superior (muslo)
+          ctx.fillStyle = '#6f4a2d';
+          ctx.beginPath();
+          ctx.moveTo(-13, 0);
+          ctx.quadraticCurveTo(8, 28, -5, 42);
+          ctx.lineTo(5, 42);
+          ctx.quadraticCurveTo(28, 20, 7, 0);
+          ctx.fill();
+
+          // parte inferior (pierna)
+          ctx.fillStyle = '#2a160c';
+          ctx.beginPath();
+          ctx.moveTo(-4, 42);
+          ctx.quadraticCurveTo(-3, 65, -2, 78);
+          ctx.lineTo(2, 78);
+          ctx.quadraticCurveTo(3, 65, 4, 42);
+          ctx.fill();
+
+          // pezuña
+          ctx.fillStyle = '#1a0e06';
+          ctx.beginPath();
+          ctx.moveTo(-6, 78);
+          ctx.lineTo(0, 48);
+          ctx.lineTo(4, 84);
+          ctx.lineTo(-4, 84);
+          ctx.fill();
+
+          ctx.restore();
+        }
+
+        leg(42,26,-0.06);
+        leg(62,26,0.03);
+        leg(-56,26,0.02);
+        leg(-38,26,-0.02);
+
+        // cuerpo  (SUBIDO 14 px)
+        ctx.save();
+        ctx.translate(16, -6);   // <<< Ajusta aquí si quieres más o menos altura
+
+        const grad = ctx.createLinearGradient(-8,-10,80,30);
+        grad.addColorStop(0,'#6f4a2d');
+        grad.addColorStop(0.6,'#4f320f');
+        grad.addColorStop(1,'#6f4a2d');
+        ctx.fillStyle = grad;
+
+        ctx.beginPath();
+
+        // Inicio en el pecho
+        ctx.moveTo(-80, 0);
+
+        // PECTORAL
+        ctx.quadraticCurveTo(-80, -20, -10, -8);
+
+        // ESPALDA HUNDIDA
+        ctx.quadraticCurveTo(40, -36, 55, -16);
+
+        // GRUPA
+        ctx.quadraticCurveTo(85, 0, 75, 28);
+
+        // BARRIGA
+        ctx.quadraticCurveTo(80, 78, -25, 55);
+
+        // Regresa pecho
+        ctx.quadraticCurveTo(-110, 65, -80, -28);
+
+        ctx.fill();
+        ctx.restore();
+
+        // cuello
+        ctx.save();
+        ctx.translate(44,-26);
+        ctx.rotate(-0.16);
+        const ng = ctx.createLinearGradient(-14,-8,14,12);
+        ng.addColorStop(0,'#6b4428');
+        ng.addColorStop(1,'#452913');
+        ctx.fillStyle = ng;
+        ctx.beginPath(); ctx.ellipse(20,5,16,20,100,0,Math.PI*2); ctx.fill();  //*
+        ctx.restore();
+
+        // cabeza
+        ctx.save();
+        ctx.translate(76,-46);
+        const hg = ctx.createLinearGradient(-28,-16,28,16);
+        hg.addColorStop(0,'#6f4a2d');
+        hg.addColorStop(1,'#53371f');
+        ctx.fillStyle = hg;
+        ctx.beginPath(); ctx.ellipse(0,0,34,24,0,0,Math.PI*2); ctx.fill();
+
+        ctx.fillStyle='#3f2415';
+        ctx.beginPath(); ctx.ellipse(16,6,12,8,0,0,Math.PI*2); ctx.fill();
+
+        // ojo
+        ctx.fillStyle='#111';
+        ctx.beginPath(); ctx.ellipse(-6,-6,4,3,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='white';
+        ctx.beginPath(); ctx.arc(-7.5,-7,1,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+
+        // =======================
+        // OREJAS REALISTAS
+        // =======================
+        function ear(ex, ey, flip){
+          ctx.save();
+          ctx.translate(ex, ey);
+          ctx.scale(flip ? -0.5 : 0.5, 0.5);
+
+          // forma exterior
+          ctx.fillStyle = "#6d472a";
+          ctx.beginPath();
+          ctx.moveTo(0,0);
+          ctx.quadraticCurveTo(48,4,63,-38);
+          ctx.quadraticCurveTo(20,-46,0,0);
+          ctx.fill();
+
+          // interior rosado claro
+          ctx.fillStyle = "#d8b8a0";
+          ctx.beginPath();
+          ctx.moveTo(6,-2);
+          ctx.quadraticCurveTo(32,6,48,-28);
+          ctx.quadraticCurveTo(10,-32,6,-2);
+          ctx.fill();
+
+          ctx.restore();
+        }
+
+        // ASTAS REALISTAS
+        drawAntler(ctx, 94, -68, 0.4, 1);
+        drawAntler(ctx, 56, -68, 0.4, -1);
+        
+        // oreja izquierda y derecha
+        ear(98, -58, false);
+        ear(58, -54, true);
+          
+        ctx.restore();
+      }
+
+      //=========================
+      // Árboles, muñeco, casa, fondo…
+
+      function drawTree(x,y,s){
+        ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+        ctx.fillStyle='#164a2e';
+        for(let i=0;i<5;i++){
+          ctx.beginPath();
+          const h = 98 - i*10;
+          ctx.moveTo(-70+i*6, -i*36);
+          ctx.lineTo(70-i*6, -i*36);
+          ctx.lineTo(0,-i*36-h);
+          ctx.fill();
+        }
+        
+        ctx.fillStyle='#7b4f2a';
+        ctx.fillRect(-8,0,16,28);
+        ctx.restore();
+      }
+
+      function snowman(x,y,s){
+        ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+        ctx.fillStyle='#fff';
+        ctx.beginPath(); ctx.arc(0,30,28,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,-5,28,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,-40,16,0,Math.PI*2); ctx.fill();
+
+        ctx.fillStyle='#555';
+        ctx.beginPath(); ctx.arc(-5,-44,3,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(5,-44,3,0,Math.PI*2); ctx.fill();
+
+        ctx.beginPath(); ctx.arc(0,-8,3,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,10,3,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,28,3,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0,48,3,0,Math.PI*2); ctx.fill();
+
+        ctx.fillStyle='#ff6b00';
+        ctx.beginPath();
+        ctx.moveTo(0,-40); ctx.lineTo(10,-38); ctx.lineTo(0,-36);
+        ctx.fill();
+
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, -38, 8, 0.15 * Math.PI, 0.85 * Math.PI); 
+        ctx.stroke();
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(-14, -80, 28, 20);
+        
+        ctx.fillRect(-20, -56, 40, 4);
+
+        ctx.fillStyle = "#bb0c0c";
+        ctx.fillRect(-14, -60, 28, 4);
+
+        ctx.strokeStyle = '#3b2a1a';
+        ctx.lineWidth = 6;
+
+        ctx.beginPath();
+        ctx.moveTo(20, -10);
+        ctx.lineTo(55, -28);
+        ctx.lineTo(70, -35);
+        ctx.moveTo(55, -28);
+        ctx.lineTo(68, -16);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(-20, -10);
+        ctx.lineTo(-55, -28);
+        ctx.lineTo(-70, -35);
+        ctx.moveTo(-55, -28);
+        ctx.lineTo(-68, -16);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function drawHouse(x, y, s) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(s, s);
+
+        ctx.fillStyle = "#b55a36";
+        ctx.fillRect(-80, -60, 160, 120);
+
+        ctx.fillStyle = "rgba(200,200,200,0.6)";
+        for (let i = 0; i < 4; i++) {
+          ctx.beginPath();
+          ctx.arc(52.5, -130 - i * 20, 12 + i * 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+          
+        ctx.fillStyle = "#5c3a2b";
+        ctx.fillRect(40, -120, 25, 60);
+          
+        ctx.fillStyle = "#7a2a1e";
+        ctx.beginPath();
+        ctx.moveTo(-100, -60);
+        ctx.lineTo(100, -60);
+        ctx.lineTo(0, -130);
+        ctx.fill();
+          
+
+        ctx.fillStyle = "#402012";
+        ctx.fillRect(-20, 0, 40, 60);
+
+        ctx.fillStyle = "#ffefc8";
+        ctx.fillRect(-60, -40, 35, 30);
+        ctx.fillRect(25, -40, 35, 30);
+
+        ctx.restore();
+      }
+
+      function drawBackground(){
+        const g = ctx.createLinearGradient(0,0,0,H);
+        g.addColorStop(0,'#031427');
+        g.addColorStop(1,'#041a2a');
+        ctx.fillStyle=g;
+        ctx.fillRect(0,0,W,H);
+
+        ctx.fillStyle='#f6fbff';
+        ctx.beginPath();
+        ctx.moveTo(0,H*0.7);
+        ctx.quadraticCurveTo(W*0.25,H*0.66,W*0.5,H*0.72);
+        ctx.quadraticCurveTo(W*0.75,H*0.78,W,H*0.72);
+        ctx.lineTo(W,H); ctx.lineTo(0,H);
+        ctx.fill();
+      }
+
+      function drawBulbs(time){
+        for(let b of bulbs){
+          const intensity = 0.5 + 0.5 * Math.sin((time + b.phase) * 0.005);
+
+          ctx.beginPath();
+          ctx.fillStyle = b.color;
+          ctx.shadowBlur = 16 * intensity;
+          ctx.shadowColor = b.color;
+
+          ctx.arc(b.x, b.y, 6 + 2 * intensity, 0, Math.PI*2);
+          ctx.fill();
+
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      function drawText(){
+        ctx.save();
+        ctx.font='bold 72px Arial';
+        ctx.fillStyle='rgba(255,245,200,0.96)';
+        ctx.textAlign='center';
+        ctx.fillText('¡Feliz Navidad!', W/2,90);
+        ctx.restore();
+      }
+
+      // --- Animación ---
+      function frame(){
+        drawBackground();
+        drawBulbs(performance.now());
+        drawHouse(W*0.75, H*0.65, 1.4);
+
+        drawReindeer(W*0.36, H*0.62, 0.9, false);
+        drawReindeer(W*0.60, H*0.66, 0.82, true);
+
+        drawTree(W*0.12, H*0.66, 1.1);
+        drawTree(W*0.88, H*0.72, 1.0);
+
+        snowman(W*0.5, H*0.67, 1.25);
+
+        drawText();
+
+        snows.forEach(s => { s.update(); s.draw(); });
+
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame(frame);
+
+    })();
+  </script>
+</body>
+</html>
