@@ -497,5 +497,32 @@
 
     })();
   </script>
+
+  <audio id="bgMusic" loop muted>
+    <source src="silent-night.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+  const music = document.getElementById("bgMusic");
+  music.volume = 0.3;
+
+  // Preparamos el recorte
+  music.currentTime = 10;
+  music.play().catch(()=>{});
+
+  function enableSound(){
+    music.muted = false;
+    music.play().catch(()=>{});
+
+    document.removeEventListener("pointerdown", enableSound);
+    document.removeEventListener("wheel", enableSound);
+    document.removeEventListener("keydown", enableSound);
+  }
+
+  document.addEventListener("pointerdown", enableSound);
+  document.addEventListener("wheel", enableSound);
+  document.addEventListener("keydown", enableSound);
+  </script>
+
 </body>
 </html>
